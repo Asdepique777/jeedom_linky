@@ -17,173 +17,107 @@ collected via their  website (API).
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-import datetime
-import logging
-import sys
-import json
-import linky
-from dateutil.relativedelta import relativedelta
+import base64
+import requests
+import http.cookiejar
 
-USERNAME = os.environ['LINKY_USERNAME']
-PASSWORD = os.environ['LINKY_PASSWORD']
-BASEDIR = os.environ['BASE_DIR']
+LOGIN_BASE_URI = 'https://espace-client-connexion.enedis.fr'
+ACCEUIL_BASE_URI = 'https://espace-client-particuliers.enedis.fr/group/espace-particuliers/accueil'
 
-# Generate y axis (consumption values) 
-def generate_y_axis(res):
-    y_values = []
+API_BASE_URI = 'https://espace-client-particuliers.enedis.fr/group/espace-particuliers'
 
-    # Extract data points from the source dictionary into a list
-    for ordre, datapoint in enumerate(res['graphe']['data']):
-        value = datapoint['valeur']
+API_ENDPOINT_LOGIN = '/auth/UI/Login'
+API_ENDPOINT_DATA = '/suivi-de-consommation'
 
-        # Remove any invalid values
-        # (they're error codes on the API side, but useless here)
-        if value < 0:
-            value = 0
+DATA_NOT_REQUESTED = -1
+DATA_NOT_AVAILABLE = -2
 
-        y_values.insert(ordre, value)
+class LinkyLoginException(Exception):
+    """Thrown if an error was encountered while retrieving energy consumption data."""
+    pass
 
-    return y_values
+def merge_cookies(cookiejar, cookies):
+    if not isinstance(cookiejar, http.cookiejar.CookieJar):
+        raise ValueError('You can only merge into CookieJar')
 
-# Generate x axis (time values)  
-def generate_x_axis(res, time_delta_unit, time_format, inc):
-    x_values = []
-
-    # Extract start date and parse it
-    start_date_queried_str = res['graphe']['periode']['dateDebut']
-    start_date_queried = datetime.datetime.strptime(start_date_queried_str, "%d/%m/%Y").date()
-
-    # Calculate final start date using the "offset" attribute returned by the API
-    kwargs = {}
-    kwargs[time_delta_unit] = res['graphe']['decalage'] * inc
-    start_date = start_date_queried - relativedelta(**kwargs)
-
-    # Generate X axis time labels for every data point
-    for ordre, _ in enumerate(res['graphe']['data']):
-        kwargs = {}
-        kwargs[time_delta_unit] = ordre * inc
-        x_values.insert(ordre, (start_date + relativedelta(**kwargs)).strftime(time_format))
-
-    return x_values
-
-# Date formatting 
-def dtostr(date):
-    return date.strftime("%d/%m/%Y")
-
-
-# Export the JSON file for half-hours power measure (for the last pas day)
-def export_hours_values(res):
-    hours_x_values = generate_x_axis(res, \
-                                    'hours', "%H:%M", 0.5)
-    hours_y_values = generate_y_axis(res)
-    hours_values = []
-
-    for i in range(0,len(hours_x_values)):
-        hours_values.append({"time" : hours_x_values[i], "conso" : hours_y_values[i]})
-    with open(BASEDIR+"/export_hours_values.json", 'w+') as outfile:
-        json.dump(hours_values, outfile)
-
-# Export the JSON file for daily consumption (for the past rolling 30 days)
-def export_days_values(res):
-    days_x_values = generate_x_axis(res, \
-                                    'days', "%d %b", 1)
-    days_y_values = generate_y_axis(res)
-    days_values = []
-
-    for i in range(0,len(days_x_values)):
-        days_values.append({"time" : days_x_values[i], "conso" : days_y_values[i]})
-    with open(BASEDIR+"/export_days_values.json", 'w+') as outfile:
-        json.dump(days_values, outfile)
-
-# Export the JSON file for monthly consumption (for the current year, starting 6 months from today)
-def export_months_values(res):
-    months_x_values = generate_x_axis(res, \
-                                    'months', "%b", 1)
-    months_y_values = generate_y_axis(res)
-    months_values = []
-
-    for i in range(0,len(months_x_values)):
-        months_values.append({"time" : months_x_values[i], "conso" : months_y_values[i]})
-    with open(BASEDIR+"/export_months_values.json", 'w+') as outfile:
-        json.dump(months_values, outfile)
-
-# Export the JSON file for yearly consumption
-def export_years_values(res):
-    years_x_values = generate_x_axis(res, \
-                                    'years', "%Y", 1)
-    years_y_values = generate_y_axis(res)
-    years_values = []
-
-    for i in range(0,len(years_x_values)):
-        years_values.append({"time" : years_x_values[i], "conso" : years_y_values[i]})
-    with open(BASEDIR+"/export_years_values.json", 'w+') as outfile:
-        json.dump(years_values, outfile)
-
-
-
-
-# Main script 
-def main():
-    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
-
-    try:
-        logging.info("logging in as %s...", USERNAME)
-        token = linky.login(USERNAME, PASSWORD)
-        logging.info("logged in successfully!")
-
-        logging.info("retreiving data...")
-        today = datetime.date.today()
-        
-        # Years
-        res_year = linky.get_data_per_year(token)
-
-        # 6 months ago - today
-        res_month = linky.get_data_per_month(token, dtostr(today - relativedelta(months=6)), \
-                                             dtostr(today))
-
-
-        # One month ago - yesterday
-        res_day = linky.get_data_per_day(token, dtostr(today - relativedelta(days=1, months=1)), \
-                                         dtostr(today - relativedelta(days=1)))
-
-
-        # Yesterday - today
-        res_hour = linky.get_data_per_hour(token, dtostr(today - relativedelta(days=1)), \
-                                           dtostr(today))
-        
-
-        logging.info("got data!")
-############################################
-		# Export of the JSON files, with exception handling as Enedis website is not robust and return empty data often
+    if isinstance(cookies, dict):
+        cookiejar = cookiejar_from_dict(
+            cookies, cookiejar=cookiejar, overwrite=False)
+    elif isinstance(cookies, http.cookiejar.CookieJar):
         try:
-            export_hours_values(res_hour)
-        except Exception as exc:
-        	# logging.info("hours values non exported")
-            logging.error(exc)
+            cookiejar.update(cookies)
+        except AttributeError:
+            for cookie_in_jar in cookies:
+                cookiejar.set_cookie(cookie_in_jar)
+    return cookiejar
 
-        try:
-            export_days_values(res_day)
-        except Exception:
-            logging.info("days values non exported")
+def login(username, password):
+    """Logs the user into the Linky API.
+    """
+    payload = {'IDToken1': username,
+               'IDToken2': password,
+               'SunQueryParamsString': base64.b64encode(b'realm=particuliers'),
+               'encoded': 'true',
+               'gx_charset': 'UTF-8'}
 
-        try:
-            export_months_values(res_month)
-        except Exception:
-            logging.info("months values non exported")
+    # to Get the authentications cookies
+    req = requests.post(LOGIN_BASE_URI + API_ENDPOINT_LOGIN, data=payload, allow_redirects=False)
+    #Dont bother, get all cookies!
+    session_cookie = req.cookies.get('iPlanetDirectoryPro')
 
-        try:
-            export_years_values(res_year)
-        except Exception:
-        	logging.info("years values non exported")
+    if session_cookie is None:
+        raise LinkyLoginException("Login unsuccessful. Check your credentials.")
 
-############################################
- 
-    except linky.LinkyLoginException as exc:
-        logging.error(exc)
-        sys.exit(1)
+    # to Get the proper JSESSIONID cookie
+    req2 = requests.get(ACCEUIL_BASE_URI,  cookies=req.cookies, allow_redirects=False)
 
+    #return all cookies
+    return merge_cookies(req.cookies,req2.cookies)
 
+def get_data_per_hour(token, start_date, end_date):
+    """Retreives hourly energy consumption data."""
+    return _get_data(token, 'urlCdcHeure', start_date, end_date)
 
-if __name__ == "__main__":
-    main()
+def get_data_per_day(token, start_date, end_date):
+    """Retreives daily energy consumption data."""
+    return _get_data(token, 'urlCdcJour', start_date, end_date)
+
+def get_data_per_month(token, start_date, end_date):
+    """Retreives monthly energy consumption data."""
+    return _get_data(token, 'urlCdcMois', start_date, end_date)
+
+def get_data_per_year(token):
+    """Retreives yearly energy consumption data."""
+    return _get_data(token, 'urlCdcAn')
+
+def _get_data(cookies, resource_id, start_date=None, end_date=None):
+    prefix = '_lincspartdisplaycdc_WAR_lincspartcdcportlet_'
+
+    # We send the session token so that the server knows who we are
+    #cookies = {'iPlanetDirectoryPro': token}
+    payload = {
+        prefix + 'dateDebut': start_date,
+        prefix + 'dateFin': end_date
+    }
+    params = {
+        'p_p_id': 'lincspartdisplaycdc_WAR_lincspartcdcportlet',
+        'p_p_lifecycle': 2,
+        'p_p_state': 'normal',
+        'p_p_mode': 'view',
+        'p_p_resource_id': resource_id,
+        'p_p_cacheability': 'cacheLevelPage',
+        'p_p_col_id': 'column-1',
+        'p_p_col_count': 2
+    }
+
+    print (API_BASE_URI + API_ENDPOINT_DATA)
+    print ("cookies",cookies)
+    print ("params",params)
+    print ("payload",payload)
+
+    req = requests.Session()
+    req.headers.update({'referer':'https://espace-client-particuliers.enedis.fr/group/espace-particuliers/suivi-de-consommation'})
+    req.headers.update({'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36'})
+    req = req.post(API_BASE_URI + API_ENDPOINT_DATA, allow_redirects=False, cookies=cookies, data=payload, params=params)
+
+    return req.json()
