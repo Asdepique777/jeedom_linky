@@ -1,3 +1,9 @@
+# Exporter les données Linky de consomation personnelle en format JSON
+
+## Il s'agit d'un fork du code de Asdepique777/jeedom_linky -- Septembre 2017
+
+Le code à été modifié pour permettre le téléchargement des données des relevés Linky via le site web d'erdf/enedis aprés la mise à jour du site. Les modifications ont été proposées pour intégration au repo d'origine dont le code ne fonctionne plus.
+
 # Script to export Linky consumption in JSON format !
 
 ## What is this?
