@@ -21,12 +21,11 @@ This script requires the use of Python 3 with the following dependencies:
 
 ## Usage
 In "gen_json.sh" script, set up environment variables containing your Enedis email and password.
+Don't forget to uncomment the following lines:
 
 	export LINKY_USERNAME="prenom.nom@mail.com"
 	export LINKY_PASSWORD="password"
 
-As the script was initially build for Jeedom environment, the defaut path targets the SCRIPT directory. For other purposes, it is possible to modify this path.
-
-	BASE_DIR="/var/www/html/plugins/script/core/ressources/linky"
 
 Then, just run "gen_json.sh" script to generate the JSON files.
+Fell free to add a cron to get ENEDIS data periodically.
