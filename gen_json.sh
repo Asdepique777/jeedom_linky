@@ -1,8 +1,9 @@
 #!/bin/sh
-export LINKY_USERNAME="prenom.nom@mail.com"
-export LINKY_PASSWORD="password"
+#export LINKY_USERNAME="prenom.nom@mail.com"
+#export LINKY_PASSWORD="password"
 
-BASE_DIR="/var/www/html/plugins/script/core/ressources/linky"
+#BASE_DIR="/var/www/html/plugins/script/core/ressources/linky"
+BASE_DIR="./"
 
 export BASE_DIR
 
