@@ -139,8 +139,8 @@ def main():
         res_year = linky.get_data_per_year(token)
 
         # 12 months ago - today
-        res_month = linky.get_data_per_month(token, dtostr(today - relativedelta(months=12)), \
-                                             dtostr(today - relativedelta(days=1)))
+        res_month = linky.get_data_per_month(token, dtostr(today - relativedelta(months=11)), \
+                                             dtostr(today))
 
 
         # One month ago - yesterday
