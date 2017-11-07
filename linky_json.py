@@ -96,7 +96,7 @@ def export_days_values(res):
     with open(BASEDIR+"/export_days_values.json", 'w+') as outfile:
         json.dump(days_values, outfile)
 
-# Export the JSON file for monthly consumption (for the current year, starting 6 months from today)
+# Export the JSON file for monthly consumption (for the current year, starting 12 months from today)
 def export_months_values(res):
     months_x_values = generate_x_axis(res, \
                                     'months', "%b", 1)
@@ -138,8 +138,8 @@ def main():
         # Years
         res_year = linky.get_data_per_year(token)
 
-        # 6 months ago - today
-        res_month = linky.get_data_per_month(token, dtostr(today - relativedelta(months=6)), \
+        # 12 months ago - today
+        res_month = linky.get_data_per_month(token, dtostr(today - relativedelta(months=12)), \
                                              dtostr(today))
 
 
