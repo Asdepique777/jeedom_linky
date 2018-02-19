@@ -15,7 +15,7 @@ The script will generate 4 JSON files for :
 ## Requirements
 This script requires the use of Python 3 with the following dependencies:
 
-- dateutil
+- dateutils
 - requests
 - json
 
