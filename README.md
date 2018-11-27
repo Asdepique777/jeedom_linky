@@ -19,13 +19,19 @@ This script requires the use of Python 3 with the following dependencies:
 - requests
 - json
 
+Example:
+
+```bash
+# json is already part of python 3
+pip install requests python-dateutil
+```
+
 ## Usage
 In "gen_json.sh" script, set up environment variables containing your Enedis email and password.
 Don't forget to uncomment the following lines:
 
-	export LINKY_USERNAME="prenom.nom@mail.com"
-	export LINKY_PASSWORD="password"
-
+    export LINKY_USERNAME="prenom.nom@mail.com"
+    export LINKY_PASSWORD="password"
 
 Then, just run "gen_json.sh" script to generate the JSON files.
 Fell free to add a cron to get ENEDIS data periodically.
