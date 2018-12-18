@@ -28,4 +28,4 @@ Don't forget to uncomment the following lines:
 
 
 Then, just run "gen_json.sh" script to generate the JSON files.
-Fell free to add a cron to get ENEDIS data periodically.
+Feel free to add a cron to get ENEDIS data periodically.
