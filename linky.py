@@ -53,7 +53,13 @@ def login(username, password):
                'SunQueryParamsString': base64.b64encode(b'realm=particuliers'),
                'encoded': 'true',
                'gx_charset': 'UTF-8'}
-
+    
+    session.headers = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Mobile Safari/537.36',
+        'Accept-Language': 'fr,fr-FR;q=0.8,en;q=0.6',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept': 'application/json, text/javascript, */*; q=0.01'}
+        
     req = session.post(LOGIN_BASE_URI + API_ENDPOINT_LOGIN, data=payload, allow_redirects=False)
 
     session_cookie = req.cookies.get('iPlanetDirectoryPro')
