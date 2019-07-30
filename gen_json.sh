@@ -1,5 +1,6 @@
 #!/bin/sh
-BASE_DIR="/home/pi/jeedom_linky"
+#BASE_DIR="/home/pi/jeedom_linky"
+BASE_DIR="./"
 export BASE_DIR
 
 . $BASE_DIR/credentials
